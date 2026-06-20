@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Local KZ</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <style>
+        :root {
+            --bg-main: #2D2D44;
+            --bg-card: #1E1E2E;
+            --bg-dropdown: #2D2D44;
+            --border-dropdown: #45475A;
+            --text-primary: #CDD6F4;
+            --text-secondary: #A6ADC8;
+            --active-bg: #89B4FA;
+            --active-text: #1E1E2E;
+            --t1: #6bc96f;
+            --t2: #33bd3a;
+            --t3: #d8e302;
+            --t4: #FFC107;
+            --t5: #e37910;
+            --t6: #e34202;
+            --t7: #e31c02;
+            --t8: #bb02db;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #1E1E2E;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            padding: 30px 60px;
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .filters-panel {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(45, 45, 68, 0.92);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 16px 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(69, 71, 90, 0.5);
+            display: flex;
+            gap: 12px 20px;
+            align-items: center;
+            width: auto;
+            max-width: 80%;
+            pointer-events: auto;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-filter {
+            height: 36px;
+            padding: 0 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            border: none;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+        .btn-filter.active {
+            background: var(--active-bg);
+            color: var(--active-text);
+        }
+        .btn-filter:hover:not(.active) {
+            background: #3A3A55;
+        }
+
+        .btn-dropdown {
+            height: 36px;
+            padding: 0 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.15s;
+            font-family: inherit;
+            white-space: nowrap;
+            min-width: 110px;
+        }
+        .btn-dropdown:hover {
+            background: #3A3A55;
+        }
+        .btn-dropdown .arrow {
+            font-size: 10px;
+            transition: transform 0.2s;
+        }
+        .btn-dropdown .arrow.open {
+            transform: rotate(180deg);
+        }
+
+        .dropdown-wrapper {
+            position: relative;
+        }
+        .dropdown-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            min-width: 200px;
+            background: var(--bg-dropdown);
+            border: 1px solid var(--border-dropdown);
+            border-radius: 12px;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+            padding: 6px 0;
+            display: none;
+            z-index: 20;
+            max-height: auto;
+            overflow-y: auto;
+        }
+        .dropdown-menu.open {
+            display: block;
+        }
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: background 0.1s;
+            background: transparent;
+            border: none;
+            width: 100%;
+            text-align: left;
+            font-family: inherit;
+        }
+        .dropdown-item:hover {
+            background: #45475A;
+        }
+        .dropdown-item .color-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .dropdown-item .label {
+            flex: 1;
+        }
+        .dropdown-item .check {
+            color: #22c55e;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .search-input {
+            height: 36px;
+            padding: 0 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            border: none;
+            outline: none;
+            width: 160px;
+            font-family: inherit;
+        }
+        .search-input::placeholder {
+            color: #6C7086;
+        }
+        .search-input:focus {
+            outline: 2px solid var(--active-bg);
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+            margin-top: 90px;
+        }
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border-dropdown);
+            transition: 0.15s;
+        }
+        .card:hover {
+            border-color: var(--active-bg);
+            transform: translateY(-2px);
+        }
+        .card img {
+            width: 100%;
+            aspect-ratio: 16/10;
+            object-fit: cover;
+            display: block;
+        }
+        .card .card-body {
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .card .tier-name {
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .card .map-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .card .map-title .steam-link {
+            display: inline-flex;
+            align-items: center;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+            flex-shrink: 0;
+        }
+        .card .map-title .steam-link:hover {
+            color: var(--active-bg);
+        }
+        .card .coursename {
+            font-size: 13px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .card .best-time {
+            font-size: 12px;
+            color: #A6E3A1;
+            margin-top: 2px;
+        }
+
+        .loading, .error, .no-results {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 40px;
+            font-size: 16px;
+            color: #6C7086;
+        }
+        .error { color: #F28B82; }
+
+        @media (max-width: 1200px) {
+            .cards-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+        @media (max-width: 900px) {
+            .cards-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (max-width: 700px) {
+            .filters-panel {
+                flex-direction: column;
+                align-items: stretch;
+                top: 10px;
+                padding: 16px;
+                width: 95vw;
+                max-width: 95vw;
+                gap: 10px;
+            }
+            .filter-group { flex-wrap: wrap; }
+            .search-input { width: 100%; }
+            .btn-filter, .btn-dropdown { flex: 1; justify-content: center; }
+            .cards-grid { grid-template-columns: repeat(2, 1fr); margin-top: 220px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="filters-panel" id="filtersPanel">
+        <div class="filter-group">
+            <button class="btn-filter active" data-group="mode" data-value="ckz">CKZ</button>
+            <button class="btn-filter" data-group="mode" data-value="vnl">VNL</button>
+        </div>
+
+        <div class="filter-group">
+            <button class="btn-filter active" data-group="type" data-value="nub">Overall</button>
+            <button class="btn-filter" data-group="type" data-value="pro">Pro</button>
+        </div>
+
+        <div class="filter-group">
+            <button class="btn-filter active" data-group="course" data-value="main">Main</button>
+            <button class="btn-filter" data-group="course" data-value="bonus">Bonus</button>
+            <button class="btn-filter" data-group="course" data-value="all">All</button>
+        </div>
+
+        <div class="dropdown-wrapper" id="tierDropdown">
+            <button class="btn-dropdown" id="tierToggle">
+                Tiers <span id="tierCount"></span>
+                <span class="arrow" id="tierArrow">▼</span>
+            </button>
+            <div class="dropdown-menu" id="tierMenu"></div>
+        </div>
+
+        <!-- PB Filter -->
+        <div class="filter-group">
+            <button class="btn-filter active" data-group="pb" data-value="all">All</button>
+            <button class="btn-filter" data-group="pb" data-value="pb">PB</button>
+            <button class="btn-filter" data-group="pb" data-value="nopb">No PB</button>
+        </div>
+
+        <div class="filter-group">
+            <input type="text" class="search-input" id="searchInput" placeholder="Search map..." />
+        </div>
+    </div>
+
+    <div id="cardsContainer" class="cards-grid"><div class="loading">Loading...</div></div>
+
+    <script>
+        const container = document.getElementById('cardsContainer');
+        let allMaps = [];
+
+        const TIER_OPTIONS = [
+            { value: 1, label: '1 - Very Easy', color: '#6bc96f' },
+            { value: 2, label: '2 - Easy', color: '#33bd3a' },
+            { value: 3, label: '3 - Medium', color: '#d8e302' },
+            { value: 4, label: '4 - Advanced', color: '#FFC107' },
+            { value: 5, label: '5 - Hard', color: '#e37910' },
+            { value: 6, label: '6 - Very Hard', color: '#e34202' },
+            { value: 7, label: '7 - Extreme', color: '#e31c02' },
+            { value: 8, label: '8 - Death', color: '#bb02db' },
+            { value: 9, label: '9 - Unfeasible', color: '#dbdbdb' },
+            { value: 10, label: '10 - Impossible', color: '#d1d1d1' }
+        ];
+
+        let currentMode = 'ckz';
+        let currentType = 'nub';
+        let currentCourse = 'main';
+        let currentPb = 'all';
+        let selectedTiers = new Set();
+        let searchTerm = '';
+
+        function formatTime(seconds) {
+            if (!seconds || seconds <= 0) return '—';
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${String(mins).padStart(2, '0')}:${secs.toFixed(3).padStart(6, '0')}`;
+        }
+
+        function initTierDropdown() {
+            const menu = document.getElementById('tierMenu');
+            const toggle = document.getElementById('tierToggle');
+            const arrow = document.getElementById('tierArrow');
+            const countSpan = document.getElementById('tierCount');
+
+            function renderMenu() {
+                menu.innerHTML = '';
+                TIER_OPTIONS.forEach(opt => {
+                    const item = document.createElement('button');
+                    item.className = 'dropdown-item';
+                    const dot = document.createElement('span');
+                    dot.className = 'color-dot';
+                    dot.style.backgroundColor = opt.color;
+                    const label = document.createElement('span');
+                    label.className = 'label';
+                    label.textContent = opt.label;
+                    const check = document.createElement('span');
+                    check.className = 'check';
+                    check.textContent = selectedTiers.has(opt.value) ? '✓' : '';
+
+                    item.appendChild(dot);
+                    item.appendChild(label);
+                    item.appendChild(check);
+
+                    item.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        if (selectedTiers.has(opt.value)) {
+                            selectedTiers.delete(opt.value);
+                        } else {
+                            selectedTiers.add(opt.value);
+                        }
+                        updateCount();
+                        renderMenu();
+                        applyFilters();
+                    });
+                    menu.appendChild(item);
+                });
+                updateCount();
+            }
+
+            function updateCount() {
+                const size = selectedTiers.size;
+                countSpan.textContent = size > 0 ? `(${size})` : '';
+            }
+
+            toggle.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const isOpen = menu.classList.toggle('open');
+                arrow.classList.toggle('open', isOpen);
+            });
+
+            document.addEventListener('click', function() {
+                menu.classList.remove('open');
+                arrow.classList.remove('open');
+            });
+
+            renderMenu();
+        }
+
+        function initFilterButtons() {
+            document.querySelectorAll('.btn-filter[data-group]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const group = this.dataset.group;
+                    const value = this.dataset.value;
+                    document.querySelectorAll(`.btn-filter[data-group="${group}"]`).forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    if (group === 'mode') currentMode = value;
+                    else if (group === 'type') currentType = value;
+                    else if (group === 'course') currentCourse = value;
+                    else if (group === 'pb') currentPb = value;
+                    applyFilters();
+                });
+            });
+        }
+
+        function getTier(map, mode, type) {
+            const key = (mode === 'ckz' ? 'ckz' : 'vnl') + (type === 'nub' ? 'nubtier' : 'protier');
+            return map[key] || 0;
+        }
+
+        function getBestTime(map, mode, type) {
+            if (mode === 'ckz') {
+                return type === 'nub' ? map.bestOverallCkz : map.bestProCkz;
+            } else {
+                return type === 'nub' ? map.bestOverallVnl : map.bestProVnl;
+            }
+        }
+
+        function renderMaps(maps) {
+            if (!maps || maps.length === 0) {
+                container.innerHTML = '<div class="no-results">Нет карт</div>';
+                return;
+            }
+
+            const filtered = maps.filter(map => {
+                if (currentCourse === 'main' && map.courseid !== 1) return false;
+                if (currentCourse === 'bonus' && map.courseid <= 1) return false;
+                const tier = getTier(map, currentMode, currentType);
+                if (selectedTiers.size > 0 && !selectedTiers.has(tier)) return false;
+                if (searchTerm && !map.mapname.toLowerCase().includes(searchTerm)) return false;
+
+                const best = getBestTime(map, currentMode, currentType);
+                const hasPB = best && best > 0;
+                if (currentPb === 'pb' && !hasPB) return false;
+                if (currentPb === 'nopb' && hasPB) return false;
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="no-results">Нет карт, соответствующих фильтрам</div>';
+                return;
+            }
+
+            let html = '';
+            filtered.forEach(map => {
+                const tier = getTier(map, currentMode, currentType);
+                const tierObj = TIER_OPTIONS.find(t => t.value === tier);
+                const tierColor = tierObj ? tierObj.color : '#6bc96f';
+                const tierName = tierObj ? tierObj.label : 'Unknown';
+                const imageUrl = map.image || `https://raw.githubusercontent.com/YesSeir/cs2kz-maps/main/maps/${map.mapname}.jpg`;
+                const bestTime = getBestTime(map, currentMode, currentType);
+                const timeStr = (bestTime && bestTime > 0) ? formatTime(bestTime) : '—';
+
+                html += `
+                    <div class="card">
+                        <img src="${imageUrl}" alt="${map.mapname}" onerror="this.src='/maps/default.jpg'" />
+                        <div class="card-body">
+                            <div class="tier-name" style="color:${tierColor}">${tierName}</div>
+                            <div class="map-title" title="${map.mapname}">
+                                ${map.mapname}
+                                <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=${map.workshopid}" target="_blank" class="steam-link" title="Open Workshop">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16">
+                                        <path fill="#dbdbdb" d="M568 320C568 457 456.8 568 319.6 568C205.8 568 110 491.7 80.6 387.6L175.8 426.9C182.2 459 210.7 483.3 244.7 483.3C283.9 483.3 316.6 450.9 314.9 409.8L399.4 349.6C451.5 350.9 495.2 308.7 495.2 256.1C495.2 204.5 453.2 162.6 401.5 162.6C349.8 162.6 307.8 204.6 307.8 256.1L307.8 257.3L248.6 343C233.1 342.1 217.9 346.4 205.1 355.1L72 300.1C82.2 172.4 189.1 72 319.6 72C456.8 72 568 183 568 320zM227.7 448.3L197.2 435.7C202.8 447.3 212.5 456.5 224.4 461.5C251.3 472.7 282.2 459.9 293.4 433.1C298.8 420.1 298.9 405.8 293.5 392.8C288.1 379.8 278 369.6 265 364.2C252.1 358.8 238.3 359 226.1 363.6L257.6 376.6C277.4 384.8 286.8 407.5 278.5 427.3C270.2 447.2 247.5 456.5 227.7 448.3zM401.5 193.8C435.9 193.8 463.8 221.7 463.8 256.1C463.8 290.5 435.9 318.4 401.5 318.4C367.1 318.4 339.2 290.5 339.2 256.1C339.2 221.7 367.1 193.8 401.5 193.8zM401.6 302.8C427.4 302.8 448.4 281.8 448.4 256C448.4 230.2 427.4 209.2 401.6 209.2C375.8 209.2 354.8 230.2 354.8 256C354.8 281.8 375.8 302.8 401.6 302.8z"/>
+                                    </svg>
+                                </a>
+                            </div>
+                            <div class="coursename">${map.coursename}</div>
+                            <div class="best-time">Best: ${timeStr}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function applyFilters() {
+            renderMaps(allMaps);
+        }
+
+        async function loadMaps() {
+            try {
+                const resp = await fetch('/api/maps');
+                if (!resp.ok) throw new Error('Ошибка сети');
+                const data = await resp.json();
+                allMaps = data;
+                applyFilters();
+            } catch (err) {
+                container.innerHTML = '<div class="error">❌ Ошибка загрузки: ' + err.message + '</div>';
+            }
+        }
+
+        document.getElementById('searchInput').addEventListener('input', function() {
+            searchTerm = this.value.toLowerCase().trim();
+            applyFilters();
+        });
+
+        initTierDropdown();
+        initFilterButtons();
+        loadMaps();
+
+        setInterval(async function() {
+            try {
+                const resp = await fetch('/api/maps?refresh=1');
+                if (resp.ok) {
+                    const data = await resp.json();
+                    allMaps = data;
+                    applyFilters();
+                }
+            } catch (e) {}
+        }, 300000);
+    </script>
+</body>
+</html>
