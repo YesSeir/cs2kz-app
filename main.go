@@ -26,7 +26,6 @@ import (
 //go:embed icon.ico
 var webFS embed.FS
 
-
 type MapInfo struct {
 	MapName        string   `json:"mapname"`
 	CourseName     string   `json:"coursename"`
@@ -54,9 +53,8 @@ var (
 
 const jsonURL = "https://raw.githubusercontent.com/YesSeir/cs2kz-maps/main/maps.json"
 
-// ---------- Поиск пути Steam через реестр ----------
 func getSteamPath() string {
-	log.Println("Поиск пути Steam...")
+	log.Println("Searching for Steam path...")
 	if runtime.GOOS == "windows" {
 		cmd := exec.Command("reg", "query", `HKCU\Software\Valve\Steam`, "/v", "SteamPath")
 		out, err := cmd.Output()
@@ -68,51 +66,49 @@ func getSteamPath() string {
 					matches := re.FindStringSubmatch(line)
 					if len(matches) > 1 {
 						path := strings.TrimSpace(matches[1])
-						log.Printf("Найден путь Steam из реестра: %s", path)
 						return path
 					}
 				}
 			}
 		}
-		log.Println("Не удалось найти путь Steam через реестр")
+		log.Println("Steam path not found via registry")
 		return ""
 	}
 	home, _ := os.UserHomeDir()
 	if runtime.GOOS == "linux" {
 		path := filepath.Join(home, ".steam", "steam")
-		log.Printf("Путь Steam (Linux): %s", path)
+		log.Printf("Steam path (Linux): %s", path)
 		return path
 	}
 	if runtime.GOOS == "darwin" {
 		path := filepath.Join(home, "Library", "Application Support", "Steam")
-		log.Printf("Путь Steam (macOS): %s", path)
+		log.Printf("Steam path (macOS): %s", path)
 		return path
 	}
 	return ""
 }
 
-// ---------- Поиск БД через VDF с простым построчным парсингом и логированием ----------
 func findDBPath() string {
 	if env := os.Getenv("CS2KZ_DB_PATH"); env != "" {
-		log.Printf("Проверяем путь из окружения: %s", env)
+		log.Printf("Checking env path: %s", env)
 		if _, err := os.Stat(env); err == nil {
-			log.Printf("БД найдена по окружению: %s", env)
+			log.Printf("Database found at env: %s", env)
 			return env
 		}
 	}
 
 	steamPath := getSteamPath()
 	if steamPath == "" {
-		log.Println("Steam path не найден")
+		log.Println("Steam path not found")
 		return ""
 	}
 
 	vdfPath := filepath.Join(steamPath, "steamapps", "libraryfolders.vdf")
-	log.Printf("Читаем VDF: %s", vdfPath)
+	log.Printf("Reading VDF: %s", vdfPath)
 
 	file, err := os.Open(vdfPath)
 	if err != nil {
-		log.Printf("Не удалось открыть VDF: %v", err)
+		log.Printf("Cannot open VDF: %v", err)
 		return ""
 	}
 	defer file.Close()
@@ -123,7 +119,6 @@ func findDBPath() string {
 	var hasCS2 bool
 	var inBlock bool
 
-	// Регулярка для поиска path: "path"   "value"
 	rePath := regexp.MustCompile(`^"path"\s+"(.+)"`)
 	reBlock := regexp.MustCompile(`^"(\d+)"$`)
 
@@ -133,7 +128,6 @@ func findDBPath() string {
 			continue
 		}
 
-		// Отслеживаем глубину
 		if strings.Contains(line, "{") {
 			depth++
 		}
@@ -141,24 +135,21 @@ func findDBPath() string {
 			depth--
 		}
 
-		// Начало блока библиотеки: на глубине 1 и строка вида "цифра"
 		if depth == 1 && reBlock.MatchString(line) {
 			if inBlock && hasCS2 && currentBlockPath != "" {
 				dbPath := filepath.Join(currentBlockPath, "steamapps", "common", "Counter-Strike Global Offensive", "game", "csgo", "addons", "cs2kz", "data", "cs2kz.sqlite3")
-				log.Printf("Проверяем БД (блок): %s", dbPath)
+				log.Printf("Checking DB: %s", dbPath)
 				if _, err := os.Stat(dbPath); err == nil {
-					log.Printf("БД найдена: %s", dbPath)
+					log.Printf("Database found: %s", dbPath)
 					return dbPath
-				} else {
-					log.Printf("Файл не существует: %v", err)
 				}
 			}
-			// Начинаем новый блок
+
 			blockID := strings.Trim(line, `"`)
 			currentBlockPath = ""
 			hasCS2 = false
 			inBlock = true
-			log.Printf("Начало блока библиотеки: %s", blockID)
+			log.Printf("Starting library block: %s", blockID)
 			continue
 		}
 
@@ -166,34 +157,27 @@ func findDBPath() string {
 			continue
 		}
 
-		// Ищем path внутри блока (на глубине 2)
 		if depth == 2 {
 			if matches := rePath.FindStringSubmatch(line); len(matches) > 1 {
 				currentBlockPath = matches[1]
-				log.Printf("Найден path для блока: %s", currentBlockPath)
+				log.Printf("Found path for block: %s", currentBlockPath)
 			}
 		}
 
-		// Ищем "730" на любой глубине внутри блока
 		if strings.Contains(line, `"730"`) {
 			hasCS2 = true
-			log.Printf("Найден CS2 (AppID 730) в блоке")
+			log.Printf("Found CS2 (AppID 730) in block")
 		}
 
-		// Закрытие блока — когда глубина становится 1 после закрывающей скобки
-		// Или если блок закончился, проверяем сразу
 		if depth == 1 && inBlock && strings.Contains(line, "}") {
 			if hasCS2 && currentBlockPath != "" {
 				dbPath := filepath.Join(currentBlockPath, "steamapps", "common", "Counter-Strike Global Offensive", "game", "csgo", "addons", "cs2kz", "data", "cs2kz.sqlite3")
-				log.Printf("Проверяем БД (закрытие блока): %s", dbPath)
+				log.Printf("Checking DB on block close: %s", dbPath)
 				if _, err := os.Stat(dbPath); err == nil {
-					log.Printf("БД найдена: %s", dbPath)
+					log.Printf("Database found: %s", dbPath)
 					return dbPath
-				} else {
-					log.Printf("Файл не существует: %v", err)
 				}
 			}
-			// Сброс
 			inBlock = false
 			currentBlockPath = ""
 			hasCS2 = false
@@ -201,36 +185,35 @@ func findDBPath() string {
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Printf("Ошибка сканирования VDF: %v", err)
+		log.Printf("VDF scan error: %v", err)
 	}
 
-	log.Println("База данных не найдена ни в одной из библиотек Steam")
+	log.Println("Database not found in any Steam library")
 	return ""
 }
 
-// ---------- Остальные функции без изменений ----------
 func initDB() {
-	log.Println("Инициализация БД...")
+	log.Println("Initializing database...")
 	dbPath := findDBPath()
 	if dbPath == "" {
-		log.Println("База данных не найдена. Времена не будут отображаться.")
+		log.Println("Database not found. Best times will not be shown.")
 		return
 	}
 	var err error
 	db, err = sql.Open("sqlite", dbPath+"?mode=ro")
 	if err != nil {
-		log.Printf("Ошибка открытия БД: %v", err)
+		log.Printf("Failed to open DB: %v", err)
 		return
 	}
 	if err := db.Ping(); err != nil {
-		log.Printf("БД не отвечает: %v", err)
+		log.Printf("DB ping failed: %v", err)
 		db.Close()
 		db = nil
 		return
 	}
-	log.Printf("БД подключена: %s", dbPath)
+	log.Printf("Database connected: %s", dbPath)
 	if err := loadBestTimes(); err != nil {
-		log.Printf("Ошибка загрузки времён: %v", err)
+		log.Printf("Failed to load best times: %v", err)
 	}
 }
 
@@ -241,7 +224,7 @@ func loadBestTimes() error {
 		log.Println("loadBestTimes: db is nil")
 		return nil
 	}
-	log.Println("Загрузка лучших времён из БД...")
+	log.Println("Loading best times from DB...")
 	queries := []struct {
 		modeID int
 		isPro  bool
@@ -266,10 +249,10 @@ func loadBestTimes() error {
 			WHERE t.RunTime > 0 AND t.ModeID = %d %s
 			GROUP BY m.Name, mc.StageID
 		`, q.modeID, proCondition)
-		log.Printf("Выполняется запрос для %s", q.label)
+		log.Printf("Executing query for %s", q.label)
 		rows, err := db.Query(query)
 		if err != nil {
-			log.Printf("Ошибка запроса для %s: %v", q.label, err)
+			log.Printf("Query error for %s: %v", q.label, err)
 			continue
 		}
 		count := 0
@@ -278,7 +261,7 @@ func loadBestTimes() error {
 			var courseID int
 			var best float64
 			if err := rows.Scan(&mapName, &courseID, &best); err != nil {
-				log.Printf("Ошибка сканирования: %v", err)
+				log.Printf("Scan error: %v", err)
 				continue
 			}
 			key := fmt.Sprintf("%s|%d|%d|%t", mapName, courseID, q.modeID, q.isPro)
@@ -287,9 +270,9 @@ func loadBestTimes() error {
 			count++
 		}
 		rows.Close()
-		log.Printf("Для %s загружено %d записей", q.label, count)
+		log.Printf("Loaded %d records for %s", count, q.label)
 	}
-	log.Printf("Всего загружено %d записей лучших времён", len(tempBest))
+	log.Printf("Total best time records loaded: %d", len(tempBest))
 	cacheMutex.Lock()
 	defer cacheMutex.Unlock()
 	for i := range mapsCache {
@@ -336,7 +319,7 @@ func fetchMaps() error {
 	if db != nil {
 		go loadBestTimes()
 	}
-	log.Printf("Загружено %d карт", len(maps))
+	log.Printf("Loaded %d maps", len(maps))
 	return nil
 }
 
@@ -371,7 +354,7 @@ func apiMapsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("refresh") == "1" {
 		go func() {
 			if err := fetchMaps(); err != nil {
-				log.Printf("Ошибка обновления: %v", err)
+				log.Printf("Refresh error: %v", err)
 			}
 		}()
 	}
@@ -385,8 +368,8 @@ func onReady() {
 	if ico, err := webFS.ReadFile("icon.ico"); err == nil {
 		systray.SetIcon(ico)
 	}
-	mOpen := systray.AddMenuItem("Open", "Открыть в браузере")
-	mExit := systray.AddMenuItem("Exit", "Выход")
+	mOpen := systray.AddMenuItem("Open", "Open in browser")
+	mExit := systray.AddMenuItem("Exit", "Exit")
 	go func() {
 		for {
 			select {
@@ -420,7 +403,7 @@ func openBrowser(url string) {
 		err = fmt.Errorf("unsupported platform")
 	}
 	if err != nil {
-		log.Printf("Не удалось открыть браузер: %v", err)
+		log.Printf("Failed to open browser: %v", err)
 	}
 }
 
@@ -429,22 +412,22 @@ func startServer() {
 	http.HandleFunc("/icon.ico", iconHandler)
 	http.HandleFunc("/api/maps", apiMapsHandler)
 	addr := "localhost:7777"
-	log.Printf("Сервер запущен на http://%s", addr)
+	log.Printf("Server started at http://%s", addr)
 	if err := http.ListenAndServe(addr, nil); err != nil {
-		log.Fatalf("Ошибка сервера: %v", err)
+		log.Fatalf("Server error: %v", err)
 	}
 }
 
 func main() {
 	initDB()
 	if err := fetchMaps(); err != nil {
-		log.Fatalf("Не удалось загрузить карты: %v", err)
+		log.Fatalf("Failed to load maps: %v", err)
 	}
 	go func() {
 		for {
 			time.Sleep(fetchPeriod)
 			if err := fetchMaps(); err != nil {
-				log.Printf("Ошибка обновления карт: %v", err)
+				log.Printf("Background map update error: %v", err)
 			}
 		}
 	}()
