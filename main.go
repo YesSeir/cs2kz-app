@@ -363,8 +363,8 @@ func apiMapsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func onReady() {
-	systray.SetTitle("CS2KZ Local")
-	systray.SetTooltip("CS2KZ")
+	systray.SetTitle("cs2kz-app")
+	systray.SetTooltip("cs2kz-app")
 	if ico, err := webFS.ReadFile("icon.ico"); err == nil {
 		systray.SetIcon(ico)
 	}
